@@ -18,43 +18,8 @@ def ray_triangle_intersect(rays: torch.Tensor, triangles: torch.Tensor):
     """
 
 
-class Vec3:
-    def __init__(self, x, y, z):
-        self.x = x
-        self.y = y
-        self.z = z
-
-    def sub(self, v):
-        return Vec3(self.x - v.x,
-                    self.y - v.y,
-                    self.z - v.z)
-
-    def dot(self, v):
-        return self.x * v.x + self.y * v.y + self.z * v.z
-
-    def cross(self, v):
-        return Vec3(self.y * v.z - self.z * v.y,
-                    self.z * v.x - self.x * v.z,
-                    self.x * v.y - self.y * v.x)
-
-    def length(self):
-        return math.sqrt(self.x * self.x +
-                         self.y * self.y +
-                         self.z * self.z)
-
-    def normalize(self):
-        l = self.length()
-        return Vec3(self.x / l, self.y / l, self.z / l)
-
-
-class Ray:
-    def __init__(self, orig=None, direction=None):
-        self.orig = orig
-        self.direction = direction
-
-
-def ray_triangle_intersect_iter(origins: torch.Tensor, 
-                                directions: torch.Tensor, 
+def ray_triangle_intersect_iter(origins: torch.Tensor,
+                                directions: torch.Tensor,
                                 triangles: torch.Tensor):
     """
         Args:
@@ -70,21 +35,21 @@ def ray_triangle_intersect_iter(origins: torch.Tensor,
         orig = origins[light_idx]
         direction = directions[light_idx]
         for face_idx in range(triangles.size(0)):
-            
+
             vert = triangles[face_idx]
             t = __ray_triangle_intersect_iter(orig,
-                                            direction,
-                                            vert)
-            
+                                              direction,
+                                              vert)
+
             if t > 0 and t.item() < intersect_depth.item():
                 intersect_depth = t
 
         if intersect_depth.item() < torch.inf:
             intersection.append(orig + intersect_depth * direction)
-            print(intersect_depth)
-        
+
     intersection = torch.stack(intersection)
     return intersection
+
 
 def __ray_triangle_intersect_iter(origin: torch.Tensor, direction: torch.Tensor, triangles: torch.Tensor):
     """
@@ -108,7 +73,7 @@ def __ray_triangle_intersect_iter(origin: torch.Tensor, direction: torch.Tensor,
 
     if det.item() < EPS:
         return -torch.nan
-    
+
     invDet = 1.0 / det
     tvec = origin - v0
     u = tvec.dot(pvec) * invDet
