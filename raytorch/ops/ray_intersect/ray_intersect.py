@@ -8,7 +8,10 @@ def test_print():
     print("tesing II")
 
 
-def ray_triangle_intersect(rays: torch.Tensor, triangles: torch.Tensor):
+def ray_triangle_intersect(origins: torch.Tensor,
+                           directions: torch.Tensor,
+                           triangles: torch.Tensor,
+                           method="single_ray"):
     """
         Args: 
             rays: [N, 2, 3] -> origin, direction
@@ -16,7 +19,91 @@ def ray_triangle_intersect(rays: torch.Tensor, triangles: torch.Tensor):
         Return: 
             intersection: [L, 3]
     """
+    if method == "single_ray":
+        return ray_triangle_intersect_single_ray(origins,
+                                        directions,
+                                        triangles)
+    
+    if method == "iter":
+        return ray_triangle_intersect_iter(origins,
+                                        directions,
+                                        triangles)
+        
+    raise NotImplementedError
 
+def ray_triangle_intersect_single_ray(origins: torch.Tensor,
+                                        directions: torch.Tensor,
+                                        triangles: torch.Tensor):
+    intersection = []
+    for light_idx in range(origins.size(0)):
+        orig = origins[light_idx]
+        direction = directions[light_idx]
+        t, drop_mask = __ray_triangle_intersect_single_ray(orig,
+                                                direction, 
+                                                triangles)
+        intersect_depth = t[~drop_mask]
+        if intersect_depth.size(0) != 0:
+            intersection.append(orig + intersect_depth.min() * direction)
+    if intersection.__len__() != 0:
+        intersection = torch.stack(intersection)
+    else:
+        intersection = torch.tensor([])
+    return intersection
+
+def __ray_triangle_intersect_single_ray(origins: torch.Tensor,
+                                directions: torch.Tensor,
+                                triangles: torch.Tensor):
+    """
+        Args:
+            origin: [3]
+            direction: [3]
+            triangles: [M, 3, 3]
+        Return:
+            intersection: [L, 3]
+    """
+    drop_mask = torch.zeros((triangles.size(0))).bool()
+    v0 = triangles[:, 0]  # [M, 3]
+    v1 = triangles[:, 1]  # [M, 3]
+    v2 = triangles[:, 2]  # [M, 3]
+
+    v0v1 = v1 - v0  # [M, 3]
+    v0v2 = v2 - v0  # [M, 3]
+
+    pvec = directions.expand_as(v0v2).cross(
+        v0v2, dim=-1)  # [M, 3] x [M, 3] -> [M, 3]
+
+    # vector-wise dot product
+    # det = v0v1.dot(pvec)
+    elementwise_product = torch.mul(v0v1, pvec)
+    det = torch.sum(elementwise_product, dim=-1)
+    
+    det = torch.where(det < EPS, EPS, det)
+    drop_mask[det < EPS] = True
+
+    invDet = 1.0 / det # [M] NaN assigned
+    tvec = origins - v0 # [M, 3]
+    
+    # vector-wise dot product
+    # u = tvec.dot(pvec) * invDet
+    elementwise_product = torch.mul(tvec, pvec)
+    u = torch.sum(elementwise_product, dim=-1) * invDet
+
+    # invDet = torch.where((u < 0) | (u > 1), -torch.nan, invDet)
+    drop_mask[(u < 0) | (u > 1)] = True
+
+    qvec = tvec.cross(v0v1, dim=-1)  # [M, 3] x [M, 3] -> [M, 3]
+    
+    elementwise_product = torch.mul(directions.expand_as(qvec), qvec)
+    v = torch.sum(elementwise_product, dim=-1) * invDet
+
+    # invDet = torch.where((v < 0) | ((u + v)> 1), -torch.nan, invDet)
+    drop_mask[(v < 0) | ((u + v) > 1)] = True
+
+    
+    elementwise_product = torch.mul(v0v2, qvec)
+    t = torch.sum(elementwise_product, dim=-1) * invDet
+
+    return t, drop_mask
 
 def ray_triangle_intersect_iter(origins: torch.Tensor,
                                 directions: torch.Tensor,

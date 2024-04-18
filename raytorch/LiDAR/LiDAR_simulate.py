@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from raytorch.ops.ray_intersect import ray_triangle_intersect_iter
+from raytorch.ops.ray_intersect import ray_triangle_intersect
 
 from pytorch3d.structures import Meshes
 
@@ -44,7 +44,7 @@ class LiDAR_base:
         self.light_directions = torch.tensor(light_directions).float()
         
 
-    def scan_triangles(self, meshes: Meshes):
+    def scan_triangles(self, meshes: Meshes, method:str="single_ray"):
         vertices = meshes.verts_packed()
         faces = meshes.faces_packed()
         vert_aligned = vertices[faces]
@@ -53,9 +53,10 @@ class LiDAR_base:
         N = light_directions.size(0)
         origins = self.origin.unsqueeze(dim=0).repeat(N, 1)
         
-        intersection = ray_triangle_intersect_iter(origins,
+        intersection = ray_triangle_intersect(origins,
                                                    light_directions,
-                                                   vert_aligned)
+                                                   vert_aligned,
+                                                   method=method)
         
         return intersection
 
