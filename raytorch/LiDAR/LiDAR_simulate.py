@@ -23,28 +23,9 @@ class LiDAR_base:
         
         self.__init_light_direction()
 
-    def __init_light_direction(self):
-
-        light_directions = []
-        for azimuthal_angle in np.arange(self.azi_range[0], 
-                                         self.azi_range[1], 
-                                         self.res[0]):
-            for polar_angle in np.arange(self.polar_range[0],
-                                          self.polar_range[1],
-                                          self.res[1]):
-                azimuthal_angle_rad = np.radians(azimuthal_angle)
-                polar_angle_rad = np.radians(polar_angle)
-
-                x = np.sin(polar_angle_rad) * np.cos(azimuthal_angle_rad)
-                y = np.sin(polar_angle_rad) * np.sin(azimuthal_angle_rad)
-                z = np.cos(polar_angle_rad)
-
-                light_directions.append([x, y, z])
-                
-        self.light_directions = torch.tensor(light_directions).float()
-        
-
-    def scan_triangles(self, meshes: Meshes, method:str="single_ray"):
+    def scan_triangles(self, meshes: Meshes, 
+                       method:str="single_ray",
+                       aabb_test:bool=True):
         vertices = meshes.verts_packed()
         faces = meshes.faces_packed()
         vert_aligned = vertices[faces]
@@ -53,12 +34,60 @@ class LiDAR_base:
         N = light_directions.size(0)
         origins = self.origin.unsqueeze(dim=0).repeat(N, 1)
         
-        intersection = ray_triangle_intersect(origins,
-                                                   light_directions,
-                                                   vert_aligned,
-                                                   method=method)
+        aabb = meshes.get_bounding_boxes().squeeze(dim=0)  # [xyz, min + max]
+        aabb_mask = origins.new_ones(N).bool()
+        if aabb_test:
+            aabb_mask = self.__ray_aabb_intersect(origins,
+                                      light_directions,
+                                      aabb)
+        
+        intersection = ray_triangle_intersect(origins[aabb_mask],
+                                                light_directions[aabb_mask],
+                                                vert_aligned,
+                                                method=method)
         
         return intersection
+        
+    def __ray_aabb_intersect(self, ray_origins, ray_directions, aabb):
+        """
+            Args:
+                ray_origins: [N, 3]
+                ray_directions: [N, 3]
+                aabb: [xyz, min + max] 
+        """
+        t_min = (aabb[:, 0] - ray_origins) / ray_directions # ([3] - [N, 3]) / [N, 3] -> [N, 3]
+        t_max = (aabb[:, 1] - ray_origins) / ray_directions
+
+        tmin = torch.min(t_min, t_max) # [N, 3]
+        tmax = torch.max(t_min, t_max) # [N, 3]
+        
+        tmax = torch.min(tmax, dim=-1).values
+        tmin = torch.max(tmin, dim=-1).values
+
+        intersect = torch.logical_and(tmax >= 0, tmin <= tmax)
+
+        return intersect
+    
+    def __init_light_direction(self):
+
+        light_directions = []
+        for azimuthal_angle in np.arange(self.azi_range[0],
+                                         self.azi_range[1],
+                                         self.res[0]):
+            for polar_angle in np.arange(self.polar_range[0],
+                                         self.polar_range[1],
+                                         self.res[1]):
+                azimuthal_angle_rad = np.radians(azimuthal_angle)
+                polar_angle_rad = np.radians(polar_angle)
+
+                x = np.sin(polar_angle_rad) * np.cos(azimuthal_angle_rad)
+                y = np.sin(polar_angle_rad) * np.sin(azimuthal_angle_rad)
+                z = np.cos(polar_angle_rad)
+
+                light_directions.append([x, y, z])
+
+        self.light_directions = torch.tensor(light_directions).float()
+
 
 class LiDAR_HDL_64E(LiDAR_base):
 
