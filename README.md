@@ -1,4 +1,5 @@
 # raytorch
+
 Raytorch : a differentiable ray intersection using Pytorch.
 
 ![lidar_1](assets/lidar_1.png)
@@ -47,7 +48,7 @@ conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvi
 
 b. Install pytorch3d following the instructions from https://github.com/facebookresearch/pytorch3d
 
-c. Install ploty as follows:
+c. Install ploty as follows (optional, to visualize)):
 
 ```bash
 pip install ploty
@@ -60,4 +61,3 @@ git clone git@github.com:Uzukidd/raytorch.git
 cd raytorch
 pip -e install .
 ```
-
