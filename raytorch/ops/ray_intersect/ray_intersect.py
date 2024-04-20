@@ -3,11 +3,6 @@ import torch
 
 EPS = 0.000001
 
-
-def test_print():
-    print("tesing II")
-
-
 def ray_triangle_intersect(origins: torch.Tensor,
                            directions: torch.Tensor,
                            triangles: torch.Tensor,
@@ -77,10 +72,10 @@ def __ray_triangle_intersect_single_ray(origins: torch.Tensor,
     elementwise_product = torch.mul(v0v1, pvec)
     det = torch.sum(elementwise_product, dim=-1)
     
-    det = torch.where(det < EPS, EPS, det)
     drop_mask[det < EPS] = True
+    det = torch.where(det < EPS, EPS, det)
 
-    invDet = 1.0 / det # [M] NaN assigned
+    invDet = 1.0 / det # [M]
     tvec = origins - v0 # [M, 3]
     
     # vector-wise dot product
