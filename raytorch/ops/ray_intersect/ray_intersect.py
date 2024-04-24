@@ -68,6 +68,38 @@ def ray_triangle_intersect_single_ray(origins: torch.Tensor,
     return intersection
 
 
+def ray_triangle_intersect_iter(origins: torch.Tensor,
+                                directions: torch.Tensor,
+                                triangles: torch.Tensor):
+    """
+        Args:
+            origin: [N, 3]
+            direction: [N, 3]
+            triangles: [M, 3, 3]
+        Return:
+            intersection: [L, 3]
+    """
+    intersection = []
+    for light_idx in range(origins.size(0)):
+        intersect_depth = torch.Tensor([torch.inf])
+        orig = origins[light_idx]
+        direction = directions[light_idx]
+        for face_idx in range(triangles.size(0)):
+
+            vert = triangles[face_idx]
+            t = __ray_triangle_intersect_iter(orig,
+                                              direction,
+                                              vert)
+
+            if t > 0 and t.item() < intersect_depth.item():
+                intersect_depth = t
+
+        if intersect_depth.item() < torch.inf:
+            intersection.append(orig + intersect_depth * direction)
+
+    intersection = torch.stack(intersection)
+    return intersection
+
 def __ray_triangle_intersect_batch_ray(origins: torch.Tensor,
                                        directions: torch.Tensor,
                                        triangles: torch.Tensor):
@@ -187,39 +219,6 @@ def __ray_triangle_intersect_single_ray(origins: torch.Tensor,
     t = torch.sum(elementwise_product, dim=-1) * invDet
 
     return t, drop_mask
-
-
-def ray_triangle_intersect_iter(origins: torch.Tensor,
-                                directions: torch.Tensor,
-                                triangles: torch.Tensor):
-    """
-        Args:
-            origin: [N, 3]
-            direction: [N, 3]
-            triangles: [M, 3, 3]
-        Return:
-            intersection: [L, 3]
-    """
-    intersection = []
-    for light_idx in range(origins.size(0)):
-        intersect_depth = torch.Tensor([torch.inf])
-        orig = origins[light_idx]
-        direction = directions[light_idx]
-        for face_idx in range(triangles.size(0)):
-
-            vert = triangles[face_idx]
-            t = __ray_triangle_intersect_iter(orig,
-                                              direction,
-                                              vert)
-
-            if t > 0 and t.item() < intersect_depth.item():
-                intersect_depth = t
-
-        if intersect_depth.item() < torch.inf:
-            intersection.append(orig + intersect_depth * direction)
-
-    intersection = torch.stack(intersection)
-    return intersection
 
 
 def __ray_triangle_intersect_iter(origin: torch.Tensor, direction: torch.Tensor, triangles: torch.Tensor):

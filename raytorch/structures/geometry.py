@@ -30,5 +30,5 @@ class learnable_meshes:
     def get_parameters(self) -> torch.Tensor:
         return self.deform_parameter
     
-    def get_gradient(self) -> torch.Tensor:
+    def get_gradient(self) -> torch.Tensor|None:
         return self.deform_parameter.grad
