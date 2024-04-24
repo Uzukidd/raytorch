@@ -7,7 +7,7 @@ EPS = 0.000001
 def ray_triangle_intersect(origins: torch.Tensor,
                            directions: torch.Tensor,
                            triangles: torch.Tensor,
-                           method="single_ray"):
+                           method="batch_ray"):
     """
         Args: 
             rays: [N, 2, 3] -> origin, direction

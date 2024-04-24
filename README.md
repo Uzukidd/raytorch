@@ -59,5 +59,5 @@ d. Clone this repository and install as follows:
 ```bash
 git clone git@github.com:Uzukidd/raytorch.git
 cd raytorch
-pip -e install .
+pip install -e .
 ```
