@@ -64,7 +64,7 @@ def ray_triangle_intersect_single_ray(origins: torch.Tensor,
     if intersection.__len__() != 0:
         intersection = torch.stack(intersection)
     else:
-        intersection = torch.tensor([])
+        intersection = torch.tensor([]).to(origins.device)
     return intersection
 
 
@@ -81,7 +81,7 @@ def ray_triangle_intersect_iter(origins: torch.Tensor,
     """
     intersection = []
     for light_idx in range(origins.size(0)):
-        intersect_depth = torch.Tensor([torch.inf])
+        intersect_depth = torch.tensor([torch.inf]).to(origins.device)
         orig = origins[light_idx]
         direction = directions[light_idx]
         for face_idx in range(triangles.size(0)):
@@ -113,7 +113,7 @@ def __ray_triangle_intersect_batch_ray(origins: torch.Tensor,
     """
     N = origins.size(0)
     M = triangles.size(0)
-    drop_mask = torch.zeros((origins.size(0),
+    drop_mask = origins.new_zeros((origins.size(0),
                              triangles.size(0))).bool()
     v0 = triangles[:, 0]  # [M, 3]
     v1 = triangles[:, 1]  # [M, 3]
@@ -132,7 +132,6 @@ def __ray_triangle_intersect_batch_ray(origins: torch.Tensor,
     pvec = directions_extended.cross(
         v0v2_extended, dim=-1)  # [N, M, 3]) x [N, M, 3] -> [N, M, 3]
     # vector-wise dot product
-    # det = v0v1.dot(pvec)
     elementwise_product = torch.mul(v0v1_extended, pvec)  # [N, M, 3]
     det = torch.sum(elementwise_product, dim=-1)   # [N, M]
 
@@ -143,11 +142,9 @@ def __ray_triangle_intersect_batch_ray(origins: torch.Tensor,
     tvec = origins_extended - v0_extended  # [N, M, 3]
 
     # vector-wise dot product
-    # u = tvec.dot(pvec) * invDet  # [N, M, 3]
     elementwise_product = torch.mul(tvec, pvec)  # [N, M, 3]
     u = torch.sum(elementwise_product, dim=-1) * invDet  # [N, M]
 
-    # invDet = torch.where((u < 0) | (u > 1), -torch.nan, invDet)
     drop_mask[(u < 0) | (u > 1)] = True
 
     # [N, M, 3] x [N, M, 3] -> [N, M, 3]
@@ -157,7 +154,6 @@ def __ray_triangle_intersect_batch_ray(origins: torch.Tensor,
     elementwise_product = torch.mul(directions_extended, qvec)
     v = torch.sum(elementwise_product, dim=-1) * invDet  # [N, M]
 
-    # invDet = torch.where((v < 0) | ((u + v)> 1), -torch.nan, invDet)
     drop_mask[(v < 0) | ((u + v) > 1)] = True
 
     elementwise_product = torch.mul(v0v2_extended, qvec)  # [N, M, 3]
@@ -177,7 +173,7 @@ def __ray_triangle_intersect_single_ray(origins: torch.Tensor,
         Return:
             intersection: [L, 3]
     """
-    drop_mask = torch.zeros((triangles.size(0))).bool()
+    drop_mask = origins.new_zeros((triangles.size(0))).bool()
     v0 = triangles[:, 0]  # [M, 3]
     v1 = triangles[:, 1]  # [M, 3]
     v2 = triangles[:, 2]  # [M, 3]
