@@ -88,7 +88,7 @@ class LiDAR_base:
 
                 light_directions.append([x, y, z])
 
-        self.light_directions = torch.tensor(light_directions).float()
+        self.light_directions = torch.tensor(light_directions).float().to(self.origin.device)
 
 
 class LiDAR_HDL_64E(LiDAR_base):
