@@ -26,7 +26,7 @@ class LiDAR_base:
         self.__init_light_direction()
 
     def scan_triangles(self, meshes: Meshes, 
-                       method:str="single_ray",
+                       method:str="batch_ray",
                        aabb_test:bool=True):
         vertices = meshes.verts_packed()
         faces = meshes.faces_packed()
