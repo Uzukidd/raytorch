@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 
-from pytorch3d.structures import Meshes
+from pytorch3d.structures import Meshes, join_meshes_as_batch
 from pytorch3d.transforms import Transform3d
 
 class learnable_meshes:
