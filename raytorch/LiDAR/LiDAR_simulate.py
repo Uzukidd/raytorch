@@ -36,10 +36,10 @@ class LiDAR_base:
         N = light_directions.size(0)
         origins = self.origin.unsqueeze(dim=0).repeat(N, 1)
         
-        aabb = meshes.get_bounding_boxes().squeeze(dim=0)  # [xyz, min + max]
+        aabb = meshes.get_bounding_boxes() # [xyz, min + max]
         aabb_mask = origins.new_ones(N).bool()
         if aabb_test:
-            aabb_mask = self.__ray_aabb_intersect(origins,
+            aabb_mask = self.__ray_aabb_intersect_batch(origins,
                                       light_directions,
                                       aabb)
         
@@ -49,6 +49,43 @@ class LiDAR_base:
                                                 method=method)
         
         return intersection
+    
+    def __ray_aabb_intersect_batch(self, ray_origins:torch.Tensor, 
+                                   ray_directions:torch.Tensor, 
+                                   aabb:torch.Tensor):
+        """
+            Args:
+                ray_origins: [N, 3]
+                ray_directions: [N, 3]
+                aabb: [M, xyz, min + max] 
+            Returns:
+                intersect: [N]
+        """
+        N = ray_origins.size(0)
+        M = aabb.size(0)
+        
+        aabb_extended = aabb.unsqueeze(dim=0).expand(N, -1, -1, -1) # [N, M, 3, 2]
+        ray_origins_extended = ray_origins.unsqueeze(
+            dim=1).expand(-1, M, -1) # [N, M, 3]
+        ray_directions_extened = ray_directions.unsqueeze(
+            dim=1).expand(-1, M, -1) # [N, M, 3]
+
+        t_min = (aabb_extended[..., 0] - 
+                 ray_origins_extended) / ray_directions_extened  
+                # ([N, M ,3] - [N, M ,3]) / [N, M ,3] -> [N, M, 3]
+        t_max = (aabb_extended[..., 1] -
+                 ray_origins_extended) / ray_directions_extened
+
+        tmin = torch.min(t_min, t_max)  # [N, M, 3]
+        tmax = torch.max(t_min, t_max)  # [N, M, 3]
+        
+        tmax = torch.min(tmax, dim=-1).values  # [N, M]
+        tmin = torch.max(tmin, dim=-1).values  # [N, M]
+
+        intersect = torch.logical_and(tmax >= 0, tmin <= tmax)  # [N, M]
+        intersect = torch.any(intersect, dim=-1)   # [N]
+
+        return intersect
         
     def __ray_aabb_intersect(self, ray_origins, ray_directions, aabb):
         """
